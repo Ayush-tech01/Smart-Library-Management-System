@@ -177,7 +177,7 @@ if (statValues.length) {
 
 /* ── Table row highlight on hover (enhanced) ─────────────────────────────  */
 document.querySelectorAll('.data-table tbody tr').forEach(tr => {
-    tr.addEventListener('mouseenter', () => tr.style.background = 'rgba(255,255,255,0.03)');
+    tr.addEventListener('mouseenter', () => tr.style.background = 'rgba(45,106,79,0.04)');
     tr.addEventListener('mouseleave', () => {
         if (!tr.classList.contains('row-overdue')) tr.style.background = '';
     });

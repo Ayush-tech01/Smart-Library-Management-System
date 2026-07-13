@@ -49,7 +49,7 @@ class User:
         u.password_hash = data['password_hash']
         u.role = data['role']
         u.member_id = data.get('member_id')
-        u.avatar_color = data.get('avatar_color') or '#8b5cf6'
+        u.avatar_color = data.get('avatar_color') or '#2d6a4f'
         u._is_active = bool(data.get('is_active', True))
         u.last_login = data.get('last_login')
         u.created_at = data.get('created_at')

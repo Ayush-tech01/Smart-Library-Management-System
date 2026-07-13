@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash VARCHAR(255) NOT NULL,
     role         ENUM('admin','librarian','member') DEFAULT 'member',
     member_id    INT NULL,
-    avatar_color VARCHAR(7) DEFAULT '#8b5cf6',
+    avatar_color VARCHAR(7) DEFAULT '#2d6a4f',
     is_active    BOOLEAN DEFAULT TRUE,
     last_login   DATETIME NULL,
     created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

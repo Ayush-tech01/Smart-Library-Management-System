@@ -41,19 +41,24 @@
 
 {% block scripts %}
 <script>
-const ACCENT    = '#8b5cf6';
-const BLUE      = '#3b82f6';
-const GREEN     = '#10b981';
-const RED       = '#ef4444';
-const AMBER     = '#f59e0b';
-const COLORS    = [ACCENT, BLUE, GREEN, RED, AMBER, '#06b6d4', '#ec4899', '#84cc16', '#f97316'];
+const css = getComputedStyle(document.documentElement);
+const ACCENT    = css.getPropertyValue('--accent').trim();
+const BLUE      = css.getPropertyValue('--blue').trim();
+const GREEN     = css.getPropertyValue('--green').trim();
+const RED       = css.getPropertyValue('--red').trim();
+const AMBER     = css.getPropertyValue('--amber').trim();
+const TEAL      = css.getPropertyValue('--teal').trim();
+const PINK      = css.getPropertyValue('--pink').trim();
+const SURFACE   = css.getPropertyValue('--surface').trim();
+const TEXT_DIM  = css.getPropertyValue('--text-dim').trim();
+const COLORS    = [ACCENT, BLUE, GREEN, RED, AMBER, TEAL, PINK, '#6b8e4e', '#c9920a'];
 
 const chartDefaults = {
-    color: '#94a3b8',
-    plugins: { legend: { labels: { color: '#94a3b8', font: { family: 'Inter' } } } },
+    color: TEXT_DIM,
+    plugins: { legend: { labels: { color: TEXT_DIM, font: { family: 'DM Sans' } } } },
     scales: {
-        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
-        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' }, beginAtZero: true }
+        x: { grid: { color: 'rgba(44,36,22,0.06)' }, ticks: { color: TEXT_DIM } },
+        y: { grid: { color: 'rgba(44,36,22,0.06)' }, ticks: { color: TEXT_DIM }, beginAtZero: true }
     }
 };
 
@@ -79,7 +84,7 @@ async function loadCharts() {
                 label: 'Books Issued',
                 data: data.monthly_issues.map(d => d.count),
                 borderColor: ACCENT,
-                backgroundColor: 'rgba(139,92,246,0.12)',
+                backgroundColor: 'rgba(45,106,79,0.1)',
                 fill: true,
                 tension: 0.4,
                 pointBackgroundColor: ACCENT,
@@ -98,12 +103,12 @@ async function loadCharts() {
                 data: data.category_dist.map(d => d.count),
                 backgroundColor: COLORS,
                 borderWidth: 2,
-                borderColor: '#0d1526'
+                borderColor: SURFACE
             }]
         },
         options: {
             responsive: true,
-            plugins: { legend: { position: 'right', labels: { color: '#94a3b8', font: { family:'Inter' } } } }
+            plugins: { legend: { position: 'right', labels: { color: TEXT_DIM, font: { family:'DM Sans' } } } }
         }
     });
 
@@ -146,12 +151,12 @@ async function loadCharts() {
                 data: data.overdue_by_category.map(d => d.count),
                 backgroundColor: [RED, AMBER, ACCENT, BLUE, GREEN],
                 borderWidth: 2,
-                borderColor: '#0d1526'
+                borderColor: SURFACE
             }]
         },
         options: {
             responsive: true,
-            plugins: { legend: { position: 'right', labels: { color: '#94a3b8', font: { family:'Inter' } } } }
+            plugins: { legend: { position: 'right', labels: { color: TEXT_DIM, font: { family:'DM Sans' } } } }
         }
     });
 }
