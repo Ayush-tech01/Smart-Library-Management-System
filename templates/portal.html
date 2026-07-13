@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}My Portal – LibraryOS{% endblock %}
+{% block page_title %}My Portal{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-title">Welcome, {{ current_user.name }} 👋</h2>
+        <p class="page-subtitle">Your personal library dashboard — Membership #{{ member.id }}</p>
+    </div>
+    <a href="{{ url_for('books') }}" class="btn-primary"><i class="fas fa-search"></i> Browse Catalog</a>
+</div>
+
+<!-- MEMBER STAT CARDS -->
+<div class="stats-grid">
+    <div class="stat-card stat-violet">
+        <div class="stat-icon"><i class="fas fa-book-open"></i></div>
+        <div class="stat-body">
+            <div class="stat-value">{{ active|length }}</div>
+            <div class="stat-label">Active Borrows</div>
+        </div>
+    </div>
+    <div class="stat-card stat-red">
+        <div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
+        <div class="stat-body">
+            <div class="stat-value">{{ overdue|length }}</div>
+            <div class="stat-label">Overdue Books</div>
+        </div>
+    </div>
+    <div class="stat-card stat-green">
+        <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+        <div class="stat-body">
+            <div class="stat-value">{{ history|length }}</div>
+            <div class="stat-label">Books Read</div>
+        </div>
+    </div>
+    <div class="stat-card stat-amber">
+        <div class="stat-icon"><i class="fas fa-bookmark"></i></div>
+        <div class="stat-body">
+            <div class="stat-value">{{ reservations|length }}</div>
+            <div class="stat-label">Reservations</div>
+        </div>
+    </div>
+    <div class="stat-card stat-pink">
+        <div class="stat-icon"><i class="fas fa-heart"></i></div>
+        <div class="stat-body">
+            <div class="stat-value">{{ wl_count }}</div>
+            <div class="stat-label">Wishlist</div>
+        </div>
+    </div>
+</div>
+
+{% if overdue %}
+<div class="alert-banner alert-danger">
+    <i class="fas fa-exclamation-triangle"></i>
+    <span>You have {{ overdue|length }} overdue book{{ 's' if overdue|length != 1 }}. Please return them to avoid increasing fines.</span>
+</div>
+{% endif %}
+
+<div class="two-col-grid" style="margin-top:1.5rem">
+    <!-- Active Loans -->
+    <div class="card">
+        <div class="card-head">
+            <h4><i class="fas fa-book-open"></i> Active Loans</h4>
+        </div>
+        <div class="card-body">
+            {% if active %}
+            {% for t in active %}
+            <div class="activity-item">
+                <div class="activity-cover">
+                    {% if t.cover_url %}
+                    <img src="{{ t.cover_url }}" alt="{{ t.book_title }}"
+                         onerror="this.parentElement.innerHTML='<div class=\'no-cover-mini\'><i class=\'fas fa-book\'></i></div>'">
+                    {% else %}
+                    <div class="no-cover-mini"><i class="fas fa-book"></i></div>
+                    {% endif %}
+                </div>
+                <div class="activity-info">
+                    <div class="activity-title">{{ t.book_title }}</div>
+                    <div class="activity-sub">{{ t.category or 'General' }}</div>
+                    <div class="due-label {% if t.due_date < now.date() %}text-danger{% else %}text-muted{% endif %}">
+                        <i class="fas fa-clock"></i>
+                        Due {{ t.due_date }}
+                        {% if t.due_date < now.date() %}
+                        <span class="overdue-tag">OVERDUE</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-book"></i>
+                <p>No active loans. <a href="{{ url_for('books') }}">Browse books</a></p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Reservations -->
+    <div class="card">
+        <div class="card-head">
+            <h4><i class="fas fa-bookmark"></i> My Reservations</h4>
+            <a href="{{ url_for('reservations') }}" class="link-sm">Manage</a>
+        </div>
+        <div class="card-body">
+            {% if reservations %}
+            {% for r in reservations %}
+            <div class="activity-item">
+                <div class="activity-cover">
+                    {% if r.cover_url %}
+                    <img src="{{ r.cover_url }}" alt="{{ r.book_title }}"
+                         onerror="this.parentElement.innerHTML='<div class=\'no-cover-mini\'><i class=\'fas fa-book\'></i></div>'">
+                    {% else %}
+                    <div class="no-cover-mini"><i class="fas fa-book"></i></div>
+                    {% endif %}
+                </div>
+                <div class="activity-info">
+                    <div class="activity-title">{{ r.book_title }}</div>
+                    <div class="activity-sub">{{ r.author }}</div>
+                </div>
+                <span class="status-pill
+                    {% if r.status == 'ready' %}pill-green
+                    {% elif r.status == 'pending' %}pill-yellow
+                    {% else %}pill-red{% endif %}">
+                    {{ r.status|title }}
+                </span>
+            </div>
+            {% endfor %}
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-bookmark"></i>
+                <p>No reservations.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Reading History -->
+{% if history %}
+<div class="card" style="margin-top:1.5rem">
+    <div class="card-head">
+        <h4><i class="fas fa-history"></i> Reading History</h4>
+        <span class="badge-count">{{ history|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr><th>Book</th><th>Category</th><th>Issued</th><th>Returned</th><th>Fine</th></tr>
+                </thead>
+                <tbody>
+                {% for t in history[:15] %}
+                <tr>
+                    <td><span class="book-name-sm">{{ t.book_title }}</span></td>
+                    <td class="text-muted">{{ t.category or '—' }}</td>
+                    <td class="text-muted">{{ t.issue_date }}</td>
+                    <td class="text-muted">{{ t.return_date or '—' }}</td>
+                    <td>
+                        {% if t.fine_amount and t.fine_amount > 0 %}
+                        <span class="fine-amount {% if t.fine_paid %}fine-paid{% else %}fine-unpaid{% endif %}">
+                            ₹{{ t.fine_amount }}{% if t.fine_paid %} ✓{% endif %}
+                        </span>
+                        {% else %}—{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

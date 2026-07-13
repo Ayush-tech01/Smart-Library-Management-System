@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Notifications – LibraryOS{% endblock %}
+{% block page_title %}Notifications{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-title">Notifications</h2>
+        <p class="page-subtitle">{{ notifications|length }} notification{{ 's' if notifications|length != 1 }}.</p>
+    </div>
+</div>
+
+<div class="notif-list">
+    {% if notifications %}
+    {% for n in notifications %}
+    <div class="notif-card notif-{{ n.type }}" id="notif-{{ n.id }}">
+        <div class="notif-icon">
+            <i class="fas fa-{% if n.type == 'success' %}check-circle{% elif n.type == 'danger' %}exclamation-circle{% elif n.type == 'warning' %}exclamation-triangle{% else %}info-circle{% endif %}"></i>
+        </div>
+        <div class="notif-body">
+            <div class="notif-title">{{ n.title }}</div>
+            <div class="notif-msg">{{ n.message }}</div>
+            <div class="notif-time">{{ n.created_at.strftime('%d %b %Y, %I:%M %p') if n.created_at else '' }}</div>
+        </div>
+        <button class="notif-dismiss" data-notif-id="{{ n.id }}" title="Dismiss">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="empty-page">
+        <i class="fas fa-bell-slash"></i>
+        <h3>All caught up!</h3>
+        <p>No notifications right now.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('.notif-dismiss').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        const id = btn.dataset.notifId;
+        await fetch(`/notifications/delete/${id}`, {method:'POST'});
+        const card = document.getElementById(`notif-${id}`);
+        card.style.opacity = '0';
+        card.style.transform = 'translateX(30px)';
+        setTimeout(() => card.remove(), 300);
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Profile – LibraryOS{% endblock %}
+{% block page_title %}Profile{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-title">My Profile</h2>
+        <p class="page-subtitle">Manage your account information and password.</p>
+    </div>
+</div>
+
+<div class="profile-layout">
+    <!-- LEFT: Avatar + role card -->
+    <div class="profile-left">
+        <div class="profile-avatar-card">
+            <div class="profile-avatar-big" style="background:{{ current_user.avatar_color }}">
+                {{ current_user.avatar_initial }}
+            </div>
+            <h3 class="profile-name">{{ current_user.name }}</h3>
+            <span class="role-badge role-{{ current_user.role }}">{{ current_user.role|title }}</span>
+            <div class="profile-meta">
+                <div><i class="fas fa-envelope"></i> {{ current_user.email }}</div>
+                {% if member and member.phone %}
+                <div><i class="fas fa-phone"></i> {{ member.phone }}</div>
+                {% endif %}
+                {% if current_user.last_login %}
+                <div><i class="fas fa-clock"></i> Last login: {{ current_user.last_login.strftime('%d %b %Y') }}</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT: Edit forms -->
+    <div class="profile-right">
+        <!-- Update Info -->
+        <div class="card" style="margin-bottom:1.5rem">
+            <div class="card-head"><h4><i class="fas fa-user-edit"></i> Update Information</h4></div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('profile') }}">
+                    <input type="hidden" name="action" value="update_info">
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Full Name</label>
+                            <input type="text" name="name" class="form-ctrl"
+                                   value="{{ current_user.name }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Email</label>
+                            <input type="email" name="email" class="form-ctrl"
+                                   value="{{ current_user.email }}" required>
+                        </div>
+                        {% if member %}
+                        <div class="form-group">
+                            <label class="form-label">Phone</label>
+                            <input type="tel" name="phone" class="form-ctrl"
+                                   value="{{ member.phone or '' }}">
+                        </div>
+                        {% endif %}
+                    </div>
+                    <button type="submit" class="btn-primary" style="margin-top:.5rem">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Change Password -->
+        <div class="card">
+            <div class="card-head"><h4><i class="fas fa-lock"></i> Change Password</h4></div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('profile') }}">
+                    <input type="hidden" name="action" value="change_password">
+                    <div class="form-group">
+                        <label class="form-label">Current Password</label>
+                        <div class="input-icon-wrap">
+                            <i class="fas fa-lock input-icon"></i>
+                            <input type="password" name="old_password" id="oldPwd" class="form-ctrl" required>
+                            <button type="button" class="password-toggle" onclick="togglePwd('oldPwd', this)">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">New Password</label>
+                        <div class="input-icon-wrap">
+                            <i class="fas fa-lock input-icon"></i>
+                            <input type="password" name="new_password" id="newPwd" class="form-ctrl" required minlength="6">
+                            <button type="button" class="password-toggle" onclick="togglePwd('newPwd', this)">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-secondary" style="margin-top:.5rem">
+                        <i class="fas fa-key"></i> Update Password
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function togglePwd(id, btn) {
+    const el = document.getElementById(id);
+    const icon = btn.querySelector('i');
+    el.type = el.type === 'password' ? 'text' : 'password';
+    icon.classList.toggle('fa-eye');
+    icon.classList.toggle('fa-eye-slash');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block title %}Dashboard – LibraryOS{% endblock %}
+{% block page_title %}<i class="fas fa-chart-line me-2"></i> Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-title">Library Dashboard</h2>
+        <p class="page-subtitle">Welcome back, {{ current_user.name }}</p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('analytics') }}" class="btn-secondary"><i class="fas fa-chart-bar"></i> Full Analytics</a>
+    </div>
+</div>
+
+<!-- STAT CARDS -->
+<div class="stats-grid">
+    <div class="stat-card stat-blue">
+        <div class="stat-icon"><i class="fas fa-book"></i></div>
+        <div class="stat-body">
+            <div class="stat-value">{{ stats.total_books }}</div>
+            <div class="stat-label">Total Books</div>
+        </div>
+        <div class="stat-trend">
+            <i class="fas fa-library"></i>
+        </div>
+    </div>
+    <div class="stat-card stat-green">
+        <div class="stat-icon"><i class="fas fa-users"></i></div>
+        <div class="stat-body">
+            <div class="stat-value">{{ stats.total_members }}</div>
+            <div class="stat-label">Active Members</div>
+        </div>
+    </div>
+    <div class="stat-card stat-violet">
+        <div class="stat-icon"><i class="fas fa-share-square"></i></div>
+        <div class="stat-body">
+            <div class="stat-value">{{ stats.issued_books }}</div>
+            <div class="stat-label">Books Issued</div>
+            {% if stats.issues_last_month %}
+            <div class="stat-sub">{{ stats.issues_this_month }} this month</div>
+            {% endif %}
+        </div>
+    </div>
+    <div class="stat-card stat-red">
+        <div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
+        <div class="stat-body">
+            <div class="stat-value">{{ stats.overdue_books }}</div>
+            <div class="stat-label">Overdue Books</div>
+        </div>
+    </div>
+    <div class="stat-card stat-amber">
+        <div class="stat-icon"><i class="fas fa-clock"></i></div>
+        <div class="stat-body">
+            <div class="stat-value">{{ stats.pending_reservations }}</div>
+            <div class="stat-label">Pending Reservations</div>
+        </div>
+    </div>
+    <div class="stat-card stat-pink">
+        <div class="stat-icon"><i class="fas fa-rupee-sign"></i></div>
+        <div class="stat-body">
+            <div class="stat-value">₹{{ stats.pending_fines }}</div>
+            <div class="stat-label">Uncollected Fines</div>
+        </div>
+    </div>
+</div>
+
+<!-- QUICK ACTIONS -->
+<!-- <div class="section-header"><h3>Quick Actions</h3></div>
+<div class="quick-actions-grid">
+    <a href="{{ url_for('books') }}" class="qa-card qa-blue">
+        <i class="fas fa-plus-circle"></i>
+        <span>Add / Browse Books</span>
+    </a>
+    <a href="{{ url_for('members') }}" class="qa-card qa-green">
+        <i class="fas fa-user-plus"></i>
+        <span>Manage Members</span>
+    </a>
+    <a href="{{ url_for('transactions') }}" class="qa-card qa-violet">
+        <i class="fas fa-book-reader"></i>
+        <span>Issue / Return</span>
+    </a>
+    <a href="{{ url_for('reservations') }}" class="qa-card qa-amber">
+        <i class="fas fa-bookmark"></i>
+        <span>Reservations</span>
+    </a>
+    <a href="{{ url_for('book_requests') }}" class="qa-card qa-pink">
+        <i class="fas fa-paper-plane"></i>
+        <span>Book Requests
+        {% if pending_requests > 0 %}<span class="qa-badge">{{ pending_requests }}</span>{% endif %}
+        </span>
+    </a>
+    <a href="{{ url_for('analytics') }}" class="qa-card qa-teal">
+        <i class="fas fa-chart-bar"></i>
+        <span>Analytics</span>
+    </a>
+</div> -->
+
+<!-- RECENT + OVERDUE -->
+<div class="two-col-grid" style="margin-top:2rem;">
+    <!-- Recent Transactions -->
+    <div class="card">
+        <div class="card-head">
+            <h4><i class="fas fa-history"></i> Recent Transactions</h4>
+            <a href="{{ url_for('transactions') }}" class="link-sm">View all</a>
+        </div>
+        <div class="card-body">
+            {% if recent %}
+            {% for t in recent %}
+            <div class="activity-item">
+                <div class="activity-cover">
+                    {% if t.cover_url %}
+                    <img src="{{ t.cover_url }}" alt="cover" onerror="this.src='/static/img/no_cover.png'">
+                    {% else %}
+                    <div class="no-cover-mini"><i class="fas fa-book"></i></div>
+                    {% endif %}
+                </div>
+                <div class="activity-info">
+                    <div class="activity-title">{{ t.book_title }}</div>
+                    <div class="activity-sub">{{ t.member_name }} · Due {{ t.due_date }}</div>
+                </div>
+                <span class="status-pill {% if t.status == 'issued' %}pill-yellow{% elif t.status == 'returned' %}pill-green{% else %}pill-red{% endif %}">
+                    {{ t.status|title }}
+                </span>
+            </div>
+            {% endfor %}
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-inbox"></i>
+                <p>No transactions yet.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Overdue Books -->
+    <div class="card">
+        <div class="card-head">
+            <h4><i class="fas fa-exclamation-triangle text-danger"></i> Overdue Books</h4>
+            <span class="badge-count">{{ overdue|length }}</span>
+        </div>
+        <div class="card-body">
+            {% if overdue %}
+            {% for b in overdue %}
+            <div class="activity-item">
+                <div class="overdue-days">
+                    <span>{{ b.days_overdue }}</span>
+                    <small>days</small>
+                </div>
+                <div class="activity-info">
+                    <div class="activity-title text-danger">{{ b.book_title }}</div>
+                    <div class="activity-sub">{{ b.member_name }} · {{ b.member_email }}</div>
+                </div>
+                <span class="fine-tag">₹{{ b.days_overdue * 10 }}</span>
+            </div>
+            {% endfor %}
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-check-circle text-success"></i>
+                <p>No overdue books. 🎉</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- NEWLY ADDED BOOKS -->
+{% if new_books %}
+<div class="section-header" style="margin-top:2rem;"><h3>Recently Added Books</h3></div>
+<div class="mini-books-grid">
+    {% for book in new_books %}
+    <a href="{{ url_for('book_detail', book_id=book.id) }}" class="mini-book-card">
+        <div class="mini-cover">
+            {% if book.cover_url %}
+            <img src="{{ book.cover_url }}" alt="{{ book.title }}" onerror="this.src=''">
+            {% else %}
+            <div class="no-cover-lg"><i class="fas fa-book"></i></div>
+            {% endif %}
+        </div>
+        <div class="mini-info">
+            <div class="mini-title">{{ book.title }}</div>
+            <div class="mini-author">{{ book.author }}</div>
+            <span class="avail-dot {% if book.available_copies > 0 %}dot-green{% else %}dot-red{% endif %}"></span>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}Book Requests – LibraryOS{% endblock %}
+{% block page_title %}Book Requests{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-title">{{ 'Book Requests' if is_staff else 'Request a Book' }}</h2>
+        <p class="page-subtitle">{{ 'Review and action member book requests.' if is_staff else 'Request books that aren\'t in the catalog yet.' }}</p>
+    </div>
+    {% if not is_staff %}
+    <button class="btn-primary" data-modal="newRequestModal"><i class="fas fa-plus"></i> New Request</button>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Author</th>
+                        <th>ISBN</th>
+                        {% if is_staff %}<th>Requested By</th>{% endif %}
+                        <th>Reason</th>
+                        <th>Status</th>
+                        {% if is_staff %}<th>Action</th>{% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                {% for r in requests %}
+                <tr>
+                    <td><strong>{{ r.title }}</strong></td>
+                    <td class="text-muted">{{ r.author or '—' }}</td>
+                    <td class="text-muted">{{ r.isbn or '—' }}</td>
+                    {% if is_staff %}
+                    <td>
+                        <div>{{ r.user_name }}</div>
+                        <div class="text-muted" style="font-size:.8rem">{{ r.user_email }}</div>
+                    </td>
+                    {% endif %}
+                    <td class="text-muted">
+                        {% if r.reason %}{{ r.reason[:80] }}{% if r.reason|length > 80 %}…{% endif %}{% else %}—{% endif %}
+                    </td>
+                    <td>
+                        <span class="status-pill
+                            {% if r.status == 'pending' %}pill-yellow
+                            {% elif r.status == 'approved' %}pill-blue
+                            {% elif r.status == 'fulfilled' %}pill-green
+                            {% else %}pill-red{% endif %}">
+                            {{ r.status|title }}
+                        </span>
+                        {% if r.admin_note %}
+                        <div class="text-muted" style="font-size:.75rem;margin-top:.2rem">{{ r.admin_note }}</div>
+                        {% endif %}
+                    </td>
+                    {% if is_staff %}
+                    <td>
+                        {% if r.status == 'pending' %}
+                        <button class="btn-icon-xs"
+        style="background:rgba(16,185,129,.15);color:#10b981"
+        title="Approve Request"
+        onclick="updateRequest({{ r.id }}, 'approved')">
+    <i class="fas fa-check"></i>
+</button>
+
+<button class="btn-icon-xs"
+        style="background:rgba(239,68,68,.15);color:#ef4444"
+        title="Reject Request"
+        onclick="updateRequest({{ r.id }}, 'rejected')">
+    <i class="fas fa-times"></i>
+</button>
+
+<button class="btn-icon-xs"
+        style="background:rgba(139,92,246,.15);color:#8b5cf6"
+        title="Mark as Fulfilled / Add to Library"
+        onclick="updateRequest({{ r.id }}, 'fulfilled')">
+    <i class="fas fa-check-double"></i>
+</button>
+                        {% else %}—{% endif %}
+                    </td>
+                    {% endif %}
+                </tr>
+                {% else %}
+                <tr><td colspan="{{ 7 if is_staff else 5 }}" class="empty-row">No requests found.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- NEW REQUEST MODAL (members) -->
+{% if not is_staff %}
+<div class="modal-backdrop" id="newRequestModal">
+    <div class="modal-box">
+        <div class="modal-head">
+            <h3>Request a New Book</h3>
+            <button class="modal-close" data-close="newRequestModal"><i class="fas fa-times"></i></button>
+        </div>
+        <form method="POST" action="{{ url_for('new_book_request') }}">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Book Title *</label>
+                    <input type="text" name="title" class="form-ctrl" required placeholder="e.g. Atomic Habits">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Author</label>
+                    <input type="text" name="author" class="form-ctrl" placeholder="e.g. James Clear">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">ISBN (if known)</label>
+                    <input type="text" name="isbn" class="form-ctrl" placeholder="9780735211292">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Why do you want this book?</label>
+                    <textarea name="reason" class="form-ctrl" rows="3"
+                              placeholder="Briefly explain why the library should acquire this book…"></textarea>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn-ghost" data-close="newRequestModal">Cancel</button>
+                <button type="submit" class="btn-primary"><i class="fas fa-paper-plane"></i> Submit Request</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<!-- ADMIN ACTION MODAL -->
+{% if is_staff %}
+<div class="modal-backdrop" id="actionModal">
+    <div class="modal-box modal-sm">
+        <div class="modal-head">
+            <h3>Update Request</h3>
+            <button class="modal-close" data-close="actionModal"><i class="fas fa-times"></i></button>
+        </div>
+        <form id="actionForm" method="POST">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Admin Note (optional)</label>
+                    <textarea name="admin_note" class="form-ctrl" rows="2" placeholder="Add a note for the member…"></textarea>
+                </div>
+                <input type="hidden" name="status" id="actionStatus">
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn-ghost" data-close="actionModal">Cancel</button>
+                <button type="submit" class="btn-primary">Confirm</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if is_staff %}
+<script>
+function updateRequest(id, status) {
+    document.getElementById('actionForm').action = `/book-requests/update/${id}`;
+    document.getElementById('actionStatus').value = status;
+    openModal('actionModal');
+}
+</script>
+{% endif %}
+{% endblock %}

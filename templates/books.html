@@ -1,0 +1,305 @@
+{% extends "base.html" %}
+{% block title %}Books – LibraryOS{% endblock %}
+{% block page_title %}<i class="fas fa-book me-2"></i> Books{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-title">Book Catalog</h2>
+        <p class="page-subtitle">Browse, search, and manage the library collection.</p>
+    </div>
+    {% if current_user.is_staff %}
+    <button class="btn-primary" data-modal="addBookModal"><i class="fas fa-plus"></i> Add Book</button>
+    {% endif %}
+</div>
+
+<!-- SEARCH + FILTERS -->
+<div class="filter-bar">
+    <form method="GET" action="{{ url_for('books') }}" class="search-form">
+        <div class="search-wrap">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" name="q" class="search-input" placeholder="Search title, author, ISBN…" value="{{ search }}">
+        </div>
+        <select name="category" class="form-select-sm">
+            <option value="">All Categories</option>
+            {% for cat in categories %}
+            <option value="{{ cat }}" {% if sel_category == cat %}selected{% endif %}>{{ cat }}</option>
+            {% endfor %}
+        </select>
+        <label class="checkbox-label">
+            <input type="checkbox" name="available" value="1" {% if request.args.get('available') == '1' %}checked{% endif %}> Available only
+        </label>
+        <button type="submit" class="btn-secondary">Filter</button>
+        <a href="{{ url_for('books') }}" class="btn-ghost">Reset</a>
+    </form>
+</div>
+
+<!-- BOOK GRID -->
+{% if books %}
+<div class="books-grid">
+    {% for book in books %}
+    {% set rating_info = ratings.get(book.id, {}) %}
+    <div class="book-card">
+        <a href="{{ url_for('book_detail', book_id=book.id) }}" class="book-cover-link">
+            <div class="book-cover">
+                {% if book.cover_url %}
+                <img src="{{ book.cover_url }}" alt="{{ book.title }}" loading="lazy"
+                     onerror="this.parentElement.innerHTML='<div class=\'no-cover\'><i class=\'fas fa-book\'></i></div>'">
+                {% else %}
+                <div class="no-cover"><i class="fas fa-book"></i></div>
+                {% endif %}
+                <div class="book-cover-overlay">
+                    <span class="view-detail">View Details</span>
+                </div>
+            </div>
+        </a>
+        <div class="book-info">
+            <div class="book-top">
+                {% if book.category %}
+                <span class="category-tag">{{ book.category }}</span>
+                {% endif %}
+                {% if current_user.is_member %}
+                <button class="wishlist-btn {% if book.id in wishlisted %}wishlisted{% endif %}"
+                        data-book-id="{{ book.id }}" title="Wishlist">
+                    <i class="fas fa-heart"></i>
+                </button>
+                {% endif %}
+            </div>
+            <a href="{{ url_for('book_detail', book_id=book.id) }}" class="book-title">{{ book.title }}</a>
+            <div class="book-author">{{ book.author }}</div>
+            {% if rating_info %}
+            <div class="star-display">
+                {% for i in range(1, 6) %}
+                <i class="fas fa-star {% if i <= rating_info.avg|round %}star-filled{% else %}star-empty{% endif %}"></i>
+                {% endfor %}
+                <span class="rating-num">{{ rating_info.avg }} ({{ rating_info.count }})</span>
+            </div>
+            {% endif %}
+            <div class="book-footer">
+                <span class="avail-badge {% if book.available_copies > 0 %}avail-yes{% else %}avail-no{% endif %}">
+                    {% if book.available_copies > 0 %}
+                    <i class="fas fa-check-circle"></i> {{ book.available_copies }} Available
+                    {% else %}
+                    <i class="fas fa-times-circle"></i> Unavailable
+                    {% endif %}
+                </span>
+                {% if current_user.is_staff %}
+                <div class="book-actions">
+                    <button class="btn-icon-xs edit-book-btn"
+                            data-book-id="{{ book.id }}" data-modal="editBookModal"
+                            title="Edit">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <a href="{{ url_for('delete_book', book_id=book.id) }}"
+                       class="btn-icon-xs btn-danger-xs" title="Delete"
+                       onclick="return confirm('Delete this book?')">
+                        <i class="fas fa-trash"></i>
+                    </a>
+                </div>
+                {% endif %}
+                {% if current_user.is_member and book.available_copies == 0 %}
+                <button class="btn-reserve-sm" data-book-id="{{ book.id }}">
+                    <i class="fas fa-bookmark"></i> Reserve
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-page">
+    <i class="fas fa-search"></i>
+    <h3>No books found</h3>
+    <p>Try adjusting your search or filters.</p>
+    <a href="{{ url_for('books') }}" class="btn-secondary">Clear Filters</a>
+</div>
+{% endif %}
+
+{% if current_user.is_staff %}
+<!-- ADD BOOK MODAL -->
+<div class="modal-backdrop" id="addBookModal">
+    <div class="modal-box modal-lg">
+        <div class="modal-head">
+            <h3>Add New Book</h3>
+            <button class="modal-close" data-close="addBookModal"><i class="fas fa-times"></i></button>
+        </div>
+        <form method="POST" action="{{ url_for('add_book') }}">
+            <div class="modal-body">
+                <div class="form-grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Title *</label>
+                        <input type="text" name="title" class="form-ctrl" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Author *</label>
+                        <input type="text" name="author" class="form-ctrl" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">ISBN *</label>
+                        <input type="text" name="isbn" class="form-ctrl" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Category</label>
+                        <input type="text" name="category" class="form-ctrl" list="cat-list">
+                        <datalist id="cat-list">
+                            {% for cat in categories %}<option value="{{ cat }}">{% endfor %}
+                        </datalist>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Publisher</label>
+                        <input type="text" name="publisher" class="form-ctrl">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Publication Year</label>
+                        <input type="number" name="publication_year" class="form-ctrl" min="1000" max="2025">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Total Copies</label>
+                        <input type="number" name="total_copies" class="form-ctrl" value="1" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Pages</label>
+                        <input type="number" name="pages" class="form-ctrl" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Language</label>
+                        <input type="text" name="language" class="form-ctrl" value="English">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Shelf Location</label>
+                        <input type="text" name="shelf_location" class="form-ctrl" placeholder="e.g. A-12">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea name="description" class="form-ctrl" rows="3" placeholder="Short description of the book..."></textarea>
+                </div>
+                <small class="form-hint"><i class="fas fa-magic"></i> Book cover will be auto-fetched from ISBN via Open Library.</small>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn-ghost" data-close="addBookModal">Cancel</button>
+                <button type="submit" class="btn-primary">Add Book</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- EDIT BOOK MODAL -->
+<div class="modal-backdrop" id="editBookModal">
+    <div class="modal-box modal-lg">
+        <div class="modal-head">
+            <h3>Edit Book</h3>
+            <button class="modal-close" data-close="editBookModal"><i class="fas fa-times"></i></button>
+        </div>
+        <form id="editBookForm" method="POST">
+            <div class="modal-body">
+                <div class="form-grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Title *</label>
+                        <input type="text" name="title" id="e_title" class="form-ctrl" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Author *</label>
+                        <input type="text" name="author" id="e_author" class="form-ctrl" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">ISBN *</label>
+                        <input type="text" name="isbn" id="e_isbn" class="form-ctrl" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Category</label>
+                        <input type="text" name="category" id="e_category" class="form-ctrl">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Publisher</label>
+                        <input type="text" name="publisher" id="e_publisher" class="form-ctrl">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Year</label>
+                        <input type="number" name="publication_year" id="e_year" class="form-ctrl">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Total Copies</label>
+                        <input type="number" name="total_copies" id="e_total" class="form-ctrl" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Pages</label>
+                        <input type="number" name="pages" id="e_pages" class="form-ctrl">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Language</label>
+                        <input type="text" name="language" id="e_language" class="form-ctrl">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Shelf Location</label>
+                        <input type="text" name="shelf_location" id="e_shelf" class="form-ctrl">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea name="description" id="e_description" class="form-ctrl" rows="3"></textarea>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn-ghost" data-close="editBookModal">Cancel</button>
+                <button type="submit" class="btn-primary">Update Book</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Wishlist toggle
+document.querySelectorAll('.wishlist-btn').forEach(btn => {
+    btn.addEventListener('click', async e => {
+        e.preventDefault();
+        const bookId = btn.dataset.bookId;
+        const res = await fetch(`/wishlist/toggle/${bookId}`, {method:'POST'});
+        const data = await res.json();
+        if (data.success) {
+            btn.classList.toggle('wishlisted', data.added);
+            showToast(data.message, data.added ? 'success' : 'info');
+        }
+    });
+});
+
+// Reserve button
+document.querySelectorAll('.btn-reserve-sm').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        const bookId = btn.dataset.bookId;
+        const fd = new FormData();
+        fd.append('book_id', bookId);
+        const res = await fetch('/reservations/add', {method:'POST', body:fd});
+        const data = await res.json();
+        showToast(data.message, data.success ? 'success' : 'danger');
+    });
+});
+
+// Edit book prefill
+document.querySelectorAll('.edit-book-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        const id = btn.dataset.bookId;
+        const res = await fetch(`/books/${id}/json`);
+        const b = await res.json();
+        document.getElementById('e_title').value = b.title || '';
+        document.getElementById('e_author').value = b.author || '';
+        document.getElementById('e_isbn').value = b.isbn || '';
+        document.getElementById('e_category').value = b.category || '';
+        document.getElementById('e_publisher').value = b.publisher || '';
+        document.getElementById('e_year').value = b.publication_year || '';
+        document.getElementById('e_total').value = b.total_copies || '';
+        document.getElementById('e_pages').value = b.pages || '';
+        document.getElementById('e_language').value = b.language || 'English';
+        document.getElementById('e_shelf').value = b.shelf_location || '';
+        document.getElementById('e_description').value = b.description || '';
+        document.getElementById('editBookForm').action = `/books/update/${id}`;
+        openModal('editBookModal');
+    });
+});
+</script>
+{% endblock %}

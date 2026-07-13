@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% block title %}Members – LibraryOS{% endblock %}
+{% block page_title %}Members{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-title">Members</h2>
+        <p class="page-subtitle">Manage library membership accounts.</p>
+    </div>
+    <button class="btn-primary" data-modal="addMemberModal"><i class="fas fa-user-plus"></i> Add Member</button>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Joined</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for m in members %}
+                <tr>
+                    <td class="text-muted">{{ loop.index }}</td>
+                    <td>
+                        <div class="member-cell">
+                            <div class="member-avatar-sm">{{ m.name[0]|upper }}</div>
+                            <span>{{ m.name }}</span>
+                        </div>
+                    </td>
+                    <td class="text-muted">{{ m.email }}</td>
+                    <td class="text-muted">{{ m.phone or '—' }}</td>
+                    <td class="text-muted">{{ m.membership_date }}</td>
+                    <td>
+                         <span class="status-pill
+        {% if m.status == 'active' %}
+            pill-green
+        {% elif m.status == 'suspended' %}
+            pill-yellow
+        {% else %}
+            pill-red
+        {% endif %}">
+        {{ m.status|title }}
+    </span>
+                    </td>
+                    <td>
+                        <div class="table-actions">
+                            <button class="btn-icon-xs edit-member-btn"
+                                    data-member-id="{{ m.id }}" data-modal="editMemberModal"
+                                    title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <a href="{{ url_for('delete_member', member_id=m.id) }}"
+                               class="btn-icon-xs btn-danger-xs"
+                               onclick="return confirm('Delete {{ m.name }}?')"
+                               title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" class="empty-row">No members yet.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ADD MEMBER MODAL -->
+<div class="modal-backdrop" id="addMemberModal">
+    <div class="modal-box">
+        <div class="modal-head">
+            <h3>Add New Member</h3>
+            <button class="modal-close" data-close="addMemberModal"><i class="fas fa-times"></i></button>
+        </div>
+        <form method="POST" action="{{ url_for('add_member') }}">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Full Name *</label>
+                    <input type="text" name="name" class="form-ctrl" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Email *</label>
+                    <input type="email" name="email" class="form-ctrl" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Phone</label>
+                    <input type="tel" name="phone" class="form-ctrl">
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="create_account" id="createAccCheck">
+                        Also create a login account for this member
+                    </label>
+                </div>
+                <div id="tempPasswordField" style="display:none" class="form-group">
+                    <label class="form-label">Temporary Password</label>
+                    <input type="text" name="temp_password" class="form-ctrl" placeholder="Set a temporary password">
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn-ghost" data-close="addMemberModal">Cancel</button>
+                <button type="submit" class="btn-primary">Add Member</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- EDIT MEMBER MODAL -->
+<div class="modal-backdrop" id="editMemberModal">
+    <div class="modal-box">
+        <div class="modal-head">
+            <h3>Edit Member</h3>
+            <button class="modal-close" data-close="editMemberModal"><i class="fas fa-times"></i></button>
+        </div>
+        <form id="editMemberForm" method="POST">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Full Name *</label>
+                    <input type="text" name="name" id="em_name" class="form-ctrl" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Email *</label>
+                    <input type="email" name="email" id="em_email" class="form-ctrl" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Phone</label>
+                    <input type="tel" name="phone" id="em_phone" class="form-ctrl">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Status</label>
+                    <select name="status" id="em_status" class="form-ctrl">
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="suspended">Suspended</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn-ghost" data-close="editMemberModal">Cancel</button>
+                <button type="submit" class="btn-primary">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('createAccCheck')?.addEventListener('change', e => {
+    document.getElementById('tempPasswordField').style.display = e.target.checked ? 'block' : 'none';
+});
+document.querySelectorAll('.edit-member-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        const id = btn.dataset.memberId;
+        const res = await fetch(`/members/${id}/json`);
+        const m = await res.json();
+        document.getElementById('em_name').value = m.name || '';
+        document.getElementById('em_email').value = m.email || '';
+        document.getElementById('em_phone').value = m.phone || '';
+        document.getElementById('em_status').value = m.status || 'active';
+        document.getElementById('editMemberForm').action = `/members/update/${id}`;
+        openModal('editMemberModal');
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}User Management – LibraryOS{% endblock %}
+{% block page_title %}User Management{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-title">User Accounts</h2>
+        <p class="page-subtitle">Manage all system user accounts and roles.</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>User</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Last Login</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for u in users %}
+                <tr>
+                    <td class="text-muted">{{ loop.index }}</td>
+                    <td>
+                        <div class="member-cell">
+                            <div class="member-avatar-sm">{{ u.name[0]|upper }}</div>
+                            <span>{{ u.name }}</span>
+                        </div>
+                    </td>
+                    <td class="text-muted">{{ u.email }}</td>
+                    <td>
+                        <span class="role-badge role-{{ u.role }}">{{ u.role|title }}</span>
+                    </td>
+                    <td class="text-muted">
+                        {{ u.last_login.strftime('%d %b %Y') if u.last_login else 'Never' }}
+                    </td>
+                    <td>
+                        <span class="status-pill {% if u.is_active %}pill-green{% else %}pill-red{% endif %}">
+                            {{ 'Active' if u.is_active else 'Inactive' }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if u.id != current_user.id %}
+                        <button class="btn-icon-xs toggle-user-btn"
+                                data-user-id="{{ u.id }}"
+                                title="{{ 'Deactivate' if u.is_active else 'Activate' }}">
+                            <i class="fas fa-{% if u.is_active %}ban{% else %}check{% endif %}"></i>
+                        </button>
+                        {% else %}
+                        <span class="text-muted" style="font-size:.8rem">You</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" class="empty-row">No users found.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('.toggle-user-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        const id = btn.dataset.userId;
+        const res = await fetch(`/users/toggle/${id}`, {method:'POST'});
+        const data = await res.json();
+        if (data.success) {
+            showToast('User status updated.', 'success');
+            setTimeout(() => location.reload(), 800);
+        } else {
+            showToast(data.message, 'danger');
+        }
+    });
+});
+</script>
+{% endblock %}

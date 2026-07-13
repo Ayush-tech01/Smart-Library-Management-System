@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+{% block title %}Transactions – LibraryOS{% endblock %}
+{% block page_title %}Transactions{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-title">Transactions</h2>
+        <p class="page-subtitle">Issue books, process returns, and track fines.</p>
+    </div>
+    <button class="btn-primary" data-modal="issueModal"><i class="fas fa-plus"></i> Issue Book</button>
+</div>
+
+<!-- STATS ROW -->
+<div class="txn-stats">
+    <div class="txn-stat">
+        <span class="txn-stat-val">{{ transactions|selectattr('status','eq','issued')|list|length }}</span>
+        <span class="txn-stat-lbl">Currently Issued</span>
+    </div>
+    <div class="txn-stat">
+        <span class="txn-stat-val text-danger">{{ overdue_transactions|length }}</span>
+        <span class="txn-stat-lbl">Overdue</span>
+    </div>
+    <div class="txn-stat">
+        <span class="txn-stat-val text-success">{{ transactions|selectattr('status','eq','returned')|list|length }}</span>
+        <span class="txn-stat-lbl">Returned</span>
+    </div>
+    <div class="txn-stat">
+        <span class="txn-stat-val text-warning">{{ transactions|selectattr('fine_paid','eq',false)|selectattr('fine_amount','gt',0)|list|length }}</span>
+        <span class="txn-stat-lbl">Unpaid Fines</span>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Book</th>
+                        <th>Member</th>
+                        <th>Issued</th>
+                        <th>Due</th>
+                        <th>Returned</th>
+                        <th>Fine</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for t in transactions %}
+                <tr class="{% if t.status == 'issued' and t.due_date < now.date() %}row-overdue{% endif %}">
+                    <td>
+                        <div class="txn-book-cell">
+                            {% if t.cover_url %}
+                            <img src="{{ t.cover_url }}" class="txn-cover" alt="cover"
+                                 onerror="this.style.display='none'">
+                            {% endif %}
+                            <span class="book-name-sm">{{ t.book_title }}</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div>{{ t.member_name }}</div>
+                        <div class="text-muted" style="font-size:.8rem">{{ t.member_email }}</div>
+                    </td>
+                    <td class="text-muted">{{ t.issue_date }}</td>
+                    <td class="{% if t.status == 'issued' and t.due_date < now.date() %}text-danger{% else %}text-muted{% endif %}">
+                        {{ t.due_date }}
+                        {% if t.status == 'issued' and t.due_date < now.date() %}
+                        <i class="fas fa-exclamation-circle" title="Overdue"></i>
+                        {% endif %}
+                    </td>
+                    <td class="text-muted">{{ t.return_date or '—' }}</td>
+                    <td>
+                        {% if t.fine_amount and t.fine_amount > 0 %}
+                        <span class="fine-amount {% if t.fine_paid %}fine-paid{% else %}fine-unpaid{% endif %}">
+                            ₹{{ t.fine_amount }}
+                            {% if t.fine_paid %}<i class="fas fa-check"></i>{% endif %}
+                        </span>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        <span class="status-pill {% if t.status == 'issued' %}pill-yellow{% else %}pill-green{% endif %}">
+                            {{ t.status|title }}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="table-actions">
+                            {% if t.status == 'issued' %}
+                            <button class="btn-sm-return" data-txn-id="{{ t.id }}" title="Return">
+                                <i class="fas fa-undo"></i> Return
+                            </button>
+                            {% endif %}
+                            {% if t.fine_amount and t.fine_amount > 0 and not t.fine_paid %}
+                            <button class="btn-sm-fine" data-txn-id="{{ t.id }}" title="Mark fine paid">
+                                <i class="fas fa-rupee-sign"></i> Pay Fine
+                            </button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="8" class="empty-row">No transactions found.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ISSUE BOOK MODAL -->
+<div class="modal-backdrop" id="issueModal">
+    <div class="modal-box">
+        <div class="modal-head">
+            <h3>Issue a Book</h3>
+            <button class="modal-close" data-close="issueModal"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Book</label>
+                <select id="issueBookId" class="form-ctrl">
+                    <option value="">Select book…</option>
+                    {% for b in books %}
+                    <option value="{{ b.id }}" {% if b.available_copies == 0 %}disabled{% endif %}>
+                        {{ b.title }} ({{ b.available_copies }} left)
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Member</label>
+                <select id="issueMemberIdTxn" class="form-ctrl">
+                    <option value="">Select member…</option>
+                    {% for m in members %}
+                    <option value="{{ m.id }}">{{ m.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Loan Period (days)</label>
+                <input type="number" id="issueDaysTxn" class="form-ctrl" value="14" min="1" max="90">
+            </div>
+            <div id="issueMsgTxn" class="issue-msg"></div>
+        </div>
+        <div class="modal-foot">
+            <button type="button" class="btn-ghost" data-close="issueModal">Cancel</button>
+            <button type="button" class="btn-primary" id="confirmIssueBtn">Issue Book</button>
+        </div>
+    </div>
+</div>
+
+<!-- RETURN / FINE MODALS -->
+<div class="modal-backdrop" id="returnModal">
+    <div class="modal-box modal-sm">
+        <div class="modal-head">
+            <h3>Return Book</h3>
+            <button class="modal-close" data-close="returnModal"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <p class="text-muted">Any overdue fine will be calculated at <strong>₹10/day</strong>.</p>
+            <div class="form-group">
+                <label class="form-label">Payment Method (if fine applies)</label>
+                <select id="returnPayMethod" class="form-ctrl">
+                    <option value="cash">Cash</option>
+                    <option value="online">Online</option>
+                    <option value="waived">Waive Fine</option>
+                </select>
+            </div>
+            <div id="returnMsg" class="issue-msg"></div>
+        </div>
+        <div class="modal-foot">
+            <button type="button" class="btn-ghost" data-close="returnModal">Cancel</button>
+            <button class="btn-primary" id="confirmReturnBtn">Confirm Return</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-backdrop" id="fineModal">
+    <div class="modal-box modal-sm">
+        <div class="modal-head">
+            <h3>Record Fine Payment</h3>
+            <button class="modal-close" data-close="fineModal"><i class="fas fa-times"></i></button>
+        </div>
+        <form id="finePayForm" method="POST">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Payment Method</label>
+                    <select name="method" class="form-ctrl">
+                        <option value="cash">Cash</option>
+                        <option value="online">Online / UPI</option>
+                        <option value="waived">Waived</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn-ghost" data-close="fineModal">Cancel</button>
+                <button type="submit" class="btn-primary">Record Payment</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let activeTxnId = null;
+
+document.getElementById('confirmIssueBtn').addEventListener('click', async () => {
+    const bookId   = document.getElementById('issueBookId').value;
+    const memberId = document.getElementById('issueMemberIdTxn').value;
+    const days     = document.getElementById('issueDaysTxn').value;
+    const msgEl    = document.getElementById('issueMsgTxn');
+    if (!bookId || !memberId) { showToast('Select book and member.', 'warning'); return; }
+    const fd = new FormData();
+    fd.append('book_id', bookId);
+    fd.append('member_id', memberId);
+    fd.append('days', days);
+    const res  = await fetch('/transactions/issue', {method:'POST', body:fd});
+    const data = await res.json();
+    msgEl.textContent = data.message;
+    msgEl.className = 'issue-msg ' + (data.success ? 'msg-success' : 'msg-error');
+    showToast(data.message, data.success ? 'success' : 'danger');
+    if (data.success) setTimeout(() => location.reload(), 1500);
+});
+
+document.querySelectorAll('.btn-sm-return').forEach(btn => {
+    btn.addEventListener('click', () => {
+        activeTxnId = btn.dataset.txnId;
+        openModal('returnModal');
+    });
+});
+
+document.getElementById('confirmReturnBtn').addEventListener('click', async () => {
+    const method = document.getElementById('returnPayMethod').value;
+    const msgEl  = document.getElementById('returnMsg');
+    const fd = new FormData();
+    fd.append('payment_method', method);
+    const res  = await fetch(`/transactions/return/${activeTxnId}`, {method:'POST', body:fd});
+    const data = await res.json();
+    msgEl.textContent = data.message;
+    msgEl.className = 'issue-msg ' + (data.success ? 'msg-success' : 'msg-error');
+    showToast(data.message, data.success ? 'success' : 'danger');
+    if (data.success) setTimeout(() => location.reload(), 1500);
+});
+
+document.querySelectorAll('.btn-sm-fine').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const id = btn.dataset.txnId;
+        document.getElementById('finePayForm').action = `/transactions/fine/pay/${id}`;
+        openModal('fineModal');
+    });
+});
+</script>
+{% endblock %}

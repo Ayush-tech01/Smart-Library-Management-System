@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Reservations – LibraryOS{% endblock %}
+{% block page_title %}Reservations{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-title">{{ 'All Reservations' if is_staff else 'My Reservations' }}</h2>
+        <p class="page-subtitle">{{ 'Manage the reservation queue.' if is_staff else 'Track books you have reserved.' }}</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Book</th>
+                        {% if is_staff %}<th>Member</th>{% endif %}
+                        <th>Reserved On</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for r in reservations %}
+                <tr>
+                    <td>
+                        <div class="member-cell">
+                            <div class="member-avatar-sm" style="border-radius:4px;background:#1e2d4d">
+                                <i class="fas fa-book" style="font-size:.7rem;color:#8b5cf6"></i>
+                            </div>
+                            <div>
+                                <div>{{ r.book_title }}</div>
+                                <div class="text-muted" style="font-size:.8rem">{{ r.author }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    {% if is_staff %}
+                    <td>
+                        <div>{{ r.member_name }}</div>
+                        <div class="text-muted" style="font-size:.8rem">{{ r.member_email }}</div>
+                    </td>
+                    {% endif %}
+                    <td class="text-muted">{{ r.reserved_at.strftime('%d %b %Y') if r.reserved_at else '—' }}</td>
+                    <td>
+                        <span class="status-pill
+                            {% if r.status == 'ready' %}pill-green
+                            {% elif r.status == 'pending' %}pill-yellow
+                            {% elif r.status == 'fulfilled' %}pill-blue
+                            {% else %}pill-red{% endif %}">
+                            {{ r.status|title }}
+                        </span>
+                        {% if r.status == 'ready' %}
+                        <div class="text-xs text-success" style="margin-top:.2rem">
+                            <i class="fas fa-bell"></i> Visit library within 3 days!
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if r.status in ('pending', 'ready') %}
+                        <form method="POST" action="{{ url_for('cancel_reservation', res_id=r.id) }}">
+                            <button type="submit" class="btn-sm-danger"
+                                    onclick="return confirm('Cancel this reservation?')">
+                                <i class="fas fa-times"></i> Cancel
+                            </button>
+                        </form>
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="{{ 5 if is_staff else 4 }}" class="empty-row">No reservations found.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

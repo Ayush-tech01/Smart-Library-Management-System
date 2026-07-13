@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Wishlist – LibraryOS{% endblock %}
+{% block page_title %}My Wishlist{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-title">My Wishlist</h2>
+        <p class="page-subtitle">{{ items|length }} book{{ 's' if items|length != 1 }} saved.</p>
+    </div>
+    <a href="{{ url_for('books') }}" class="btn-secondary"><i class="fas fa-plus"></i> Browse More</a>
+</div>
+
+{% if items %}
+<div class="books-grid">
+    {% for item in items %}
+    {% set rating_info = ratings.get(item.book_id, {}) %}
+    <div class="book-card">
+        <a href="{{ url_for('book_detail', book_id=item.book_id) }}" class="book-cover-link">
+            <div class="book-cover">
+                {% if item.cover_url %}
+                <img src="{{ item.cover_url }}" alt="{{ item.title }}" loading="lazy"
+                     onerror="this.parentElement.innerHTML='<div class=\'no-cover\'><i class=\'fas fa-book\'></i></div>'">
+                {% else %}
+                <div class="no-cover"><i class="fas fa-book"></i></div>
+                {% endif %}
+                <div class="book-cover-overlay"><span class="view-detail">View Details</span></div>
+            </div>
+        </a>
+        <div class="book-info">
+            <div class="book-top">
+                {% if item.category %}<span class="category-tag">{{ item.category }}</span>{% endif %}
+                <button class="wishlist-btn wishlisted" data-book-id="{{ item.book_id }}"
+                        title="Remove from wishlist">
+                    <i class="fas fa-heart"></i>
+                </button>
+            </div>
+            <a href="{{ url_for('book_detail', book_id=item.book_id) }}" class="book-title">{{ item.title }}</a>
+            <div class="book-author">{{ item.author }}</div>
+            {% if rating_info %}
+            <div class="star-display">
+                {% for i in range(1,6) %}
+                <i class="fas fa-star {% if i <= rating_info.avg|round %}star-filled{% else %}star-empty{% endif %}"></i>
+                {% endfor %}
+                <span class="rating-num">{{ rating_info.avg }}</span>
+            </div>
+            {% endif %}
+            <div class="book-footer">
+                <span class="avail-badge {% if item.available_copies > 0 %}avail-yes{% else %}avail-no{% endif %}">
+                    {% if item.available_copies > 0 %}
+                    <i class="fas fa-check-circle"></i> Available
+                    {% else %}
+                    <i class="fas fa-times-circle"></i> Unavailable
+                    {% endif %}
+                </span>
+                {% if item.available_copies == 0 %}
+                <button class="btn-reserve-sm" data-book-id="{{ item.book_id }}">
+                    <i class="fas fa-bookmark"></i> Reserve
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-page">
+    <i class="fas fa-heart"></i>
+    <h3>Your wishlist is empty</h3>
+    <p>Heart any book in the catalog to save it here.</p>
+    <a href="{{ url_for('books') }}" class="btn-primary">Browse Books</a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('.wishlist-btn').forEach(btn => {
+    btn.addEventListener('click', async e => {
+        e.preventDefault();
+        const bookId = btn.dataset.bookId;
+        const res = await fetch(`/wishlist/toggle/${bookId}`, {method:'POST'});
+        const data = await res.json();
+        if (data.success && !data.added) {
+            btn.closest('.book-card').style.opacity = '0';
+            setTimeout(() => btn.closest('.book-card').remove(), 300);
+            showToast('Removed from wishlist', 'info');
+        }
+    });
+});
+document.querySelectorAll('.btn-reserve-sm').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        const fd = new FormData();
+        fd.append('book_id', btn.dataset.bookId);
+        const res  = await fetch('/reservations/add', {method:'POST', body:fd});
+        const data = await res.json();
+        showToast(data.message, data.success ? 'success' : 'danger');
+    });
+});
+</script>
+{% endblock %}

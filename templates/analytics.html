@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}Analytics – LibraryOS{% endblock %}
+{% block page_title %}<i class="fas fa-chart-bar me-2"></i> Analytics{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-title">Library Analytics</h2>
+        <p class="page-subtitle">Data insights across books, members, and transactions.</p>
+    </div>
+    <div id="finesSummary" class="fines-summary-bar"></div>
+</div>
+
+<div class="charts-grid">
+    <div class="chart-card chart-wide">
+        <div class="chart-head"><h4><i class="fas fa-chart-line"></i> Monthly Book Issues</h4></div>
+        <canvas id="issuesChart" height="120"></canvas>
+    </div>
+    <div class="chart-card">
+        <div class="chart-head"><h4><i class="fas fa-chart-pie"></i> Category Distribution</h4></div>
+        <canvas id="categoryChart" height="220"></canvas>
+    </div>
+    <div class="chart-card chart-wide">
+        <div class="chart-head"><h4><i class="fas fa-trophy"></i> Top Borrowed Books</h4></div>
+        <canvas id="topBooksChart" height="160"></canvas>
+    </div>
+    <div class="chart-card">
+        <div class="chart-head"><h4><i class="fas fa-user-plus"></i> New Member Registrations</h4></div>
+        <canvas id="membersChart" height="220"></canvas>
+    </div>
+    <div class="chart-card">
+        <div class="chart-head"><h4><i class="fas fa-exclamation-triangle"></i> Overdue by Category</h4></div>
+        <canvas id="overdueChart" height="220"></canvas>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const ACCENT    = '#8b5cf6';
+const BLUE      = '#3b82f6';
+const GREEN     = '#10b981';
+const RED       = '#ef4444';
+const AMBER     = '#f59e0b';
+const COLORS    = [ACCENT, BLUE, GREEN, RED, AMBER, '#06b6d4', '#ec4899', '#84cc16', '#f97316'];
+
+const chartDefaults = {
+    color: '#94a3b8',
+    plugins: { legend: { labels: { color: '#94a3b8', font: { family: 'Inter' } } } },
+    scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
+        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' }, beginAtZero: true }
+    }
+};
+
+async function loadCharts() {
+    const res  = await fetch('/analytics/data');
+    const data = await res.json();
+
+    // Fines summary
+    const f = data.fine_summary;
+    if (f) {
+        document.getElementById('finesSummary').innerHTML = `
+            <div class="fine-pill fine-total">Total ₹${f.total_fines||0}</div>
+            <div class="fine-pill fine-collected">Collected ₹${f.collected||0}</div>
+            <div class="fine-pill fine-pending">Pending ₹${f.pending||0}</div>`;
+    }
+
+    // Monthly Issues
+    new Chart(document.getElementById('issuesChart'), {
+        type: 'line',
+        data: {
+            labels: data.monthly_issues.map(d => d.month),
+            datasets: [{
+                label: 'Books Issued',
+                data: data.monthly_issues.map(d => d.count),
+                borderColor: ACCENT,
+                backgroundColor: 'rgba(139,92,246,0.12)',
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: ACCENT,
+                pointRadius: 5
+            }]
+        },
+        options: { ...chartDefaults, responsive: true }
+    });
+
+    // Category doughnut
+    new Chart(document.getElementById('categoryChart'), {
+        type: 'doughnut',
+        data: {
+            labels: data.category_dist.map(d => d.category),
+            datasets: [{
+                data: data.category_dist.map(d => d.count),
+                backgroundColor: COLORS,
+                borderWidth: 2,
+                borderColor: '#0d1526'
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { position: 'right', labels: { color: '#94a3b8', font: { family:'Inter' } } } }
+        }
+    });
+
+    // Top Books
+    new Chart(document.getElementById('topBooksChart'), {
+        type: 'bar',
+        data: {
+            labels: data.top_books.map(b => b.title.length > 25 ? b.title.slice(0,25)+'…' : b.title),
+            datasets: [{
+                label: 'Times Borrowed',
+                data: data.top_books.map(b => b.borrow_count),
+                backgroundColor: COLORS,
+                borderRadius: 6
+            }]
+        },
+        options: { ...chartDefaults, responsive: true, plugins: { legend: { display: false } } }
+    });
+
+    // New Members
+    new Chart(document.getElementById('membersChart'), {
+        type: 'bar',
+        data: {
+            labels: data.monthly_members.map(d => d.month),
+            datasets: [{
+                label: 'New Members',
+                data: data.monthly_members.map(d => d.count),
+                backgroundColor: GREEN,
+                borderRadius: 6
+            }]
+        },
+        options: { ...chartDefaults, responsive: true, plugins: { legend: { display: false } } }
+    });
+
+    // Overdue by category
+    new Chart(document.getElementById('overdueChart'), {
+        type: 'doughnut',
+        data: {
+            labels: data.overdue_by_category.map(d => d.category),
+            datasets: [{
+                data: data.overdue_by_category.map(d => d.count),
+                backgroundColor: [RED, AMBER, ACCENT, BLUE, GREEN],
+                borderWidth: 2,
+                borderColor: '#0d1526'
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { position: 'right', labels: { color: '#94a3b8', font: { family:'Inter' } } } }
+        }
+    });
+}
+
+loadCharts();
+</script>
+{% endblock %}

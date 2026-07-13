@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+{% block title %}{{ book.title }} – LibraryOS{% endblock %}
+{% block page_title %}Book Detail{% endblock %}
+
+{% block content %}
+<div class="back-link">
+    <a href="{{ url_for('books') }}"><i class="fas fa-arrow-left"></i> Back to Catalog</a>
+</div>
+
+<div class="book-detail-layout">
+    <!-- LEFT: Cover + Actions -->
+    <div class="book-detail-left">
+        <div class="book-detail-cover">
+            {% if book.cover_url %}
+            <img src="{{ book.cover_url }}" alt="{{ book.title }}"
+                 onerror="this.parentElement.innerHTML='<div class=\'no-cover-detail\'><i class=\'fas fa-book\'></i></div>'">
+            {% else %}
+            <div class="no-cover-detail"><i class="fas fa-book"></i></div>
+            {% endif %}
+        </div>
+
+        <div class="availability-box {% if book.available_copies > 0 %}avail-yes{% else %}avail-no{% endif %}">
+            <i class="fas fa-{% if book.available_copies > 0 %}check-circle{% else %}times-circle{% endif %}"></i>
+            {% if book.available_copies > 0 %}
+            <span>{{ book.available_copies }} of {{ book.total_copies }} Available</span>
+            {% else %}
+            <span>Currently Unavailable</span>
+            {% endif %}
+        </div>
+
+        {% if current_user.is_staff %}
+        <div class="detail-actions">
+            <!-- <button class="btn-secondary w-full" data-book-id="{{ book.id }}" data-modal="editBookModal2">
+                <i class="fas fa-edit"></i> Edit Book
+            </button> -->
+            <a href="{{ url_for('delete_book', book_id=book.id) }}"
+               class="btn-danger-outline w-full"
+               onclick="return confirm('Delete this book permanently?')">
+               <i class="fas fa-trash"></i> Delete
+            </a>
+        </div>
+        {% else %}
+        <div class="detail-actions">
+            <button class="btn-wishlist-lg {% if is_wishlisted %}wishlisted{% endif %}"
+                    id="wishlistBtn" data-book-id="{{ book.id }}">
+                <i class="fas fa-heart"></i>
+                <span>{{ 'In Wishlist' if is_wishlisted else 'Add to Wishlist' }}</span>
+            </button>
+            {% if book.available_copies == 0 %}
+            <button class="btn-reserve-lg" id="reserveBtn" data-book-id="{{ book.id }}">
+                <i class="fas fa-bookmark"></i> Reserve This Book
+            </button>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- RIGHT: Info -->
+    <div class="book-detail-right">
+        <div class="detail-header">
+            {% if book.category %}
+            <span class="category-tag">{{ book.category }}</span>
+            {% endif %}
+            <h1 class="detail-title">{{ book.title }}</h1>
+            <p class="detail-author">by <strong>{{ book.author }}</strong></p>
+            <div class="detail-rating">
+                {% for i in range(1, 6) %}
+                <i class="fas fa-star {% if i <= avg|round %}star-filled{% else %}star-empty{% endif %}"></i>
+                {% endfor %}
+                <span class="rating-text">{{ avg }} avg — {{ review_count }} review{{ 's' if review_count != 1 }}</span>
+            </div>
+        </div>
+
+        <div class="detail-meta-grid">
+            {% if book.isbn %}<div class="meta-item"><i class="fas fa-barcode"></i><span>ISBN: {{ book.isbn }}</span></div>{% endif %}
+            {% if book.publisher %}<div class="meta-item"><i class="fas fa-building"></i><span>{{ book.publisher }}</span></div>{% endif %}
+            {% if book.publication_year %}<div class="meta-item"><i class="fas fa-calendar"></i><span>{{ book.publication_year }}</span></div>{% endif %}
+            {% if book.language %}<div class="meta-item"><i class="fas fa-globe"></i><span>{{ book.language }}</span></div>{% endif %}
+            {% if book.pages %}<div class="meta-item"><i class="fas fa-file-alt"></i><span>{{ book.pages }} pages</span></div>{% endif %}
+            {% if book.shelf_location %}<div class="meta-item"><i class="fas fa-map-marker-alt"></i><span>Shelf {{ book.shelf_location }}</span></div>{% endif %}
+        </div>
+
+        {% if book.description %}
+        <div class="detail-description">
+            <h4>About this Book</h4>
+            <p>{{ book.description }}</p>
+        </div>
+        {% endif %}
+
+        {% if current_user.is_staff and members %}
+        <!-- Issue Book form (for staff) -->
+        <div class="issue-form-box">
+            <h4><i class="fas fa-book-reader"></i> Issue this Book</h4>
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label class="form-label">Member</label>
+                    <select id="issueMemberId" class="form-ctrl">
+                        <option value="">Select member…</option>
+                        {% for m in members %}
+                        <option value="{{ m.id }}">{{ m.name }} ({{ m.email }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Loan Days</label>
+                    <input type="number" id="issueDays" class="form-ctrl" value="14" min="1" max="60">
+                </div>
+            </div>
+            <button class="btn-primary" id="issueBtn" data-book-id="{{ book.id }}">
+                <i class="fas fa-paper-plane"></i> Issue Book
+            </button>
+            <div id="issueMsg" class="issue-msg"></div>
+        </div>
+        {% endif %}
+
+        <!-- REVIEWS SECTION -->
+        <div class="reviews-section">
+            <h3><i class="fas fa-star"></i> Reviews & Ratings</h3>
+
+            {% if not current_user.is_staff %}
+            <div class="write-review-box">
+                <h4>{{ 'Update Your Review' if user_review else 'Write a Review' }}</h4>
+                <form method="POST" action="{{ url_for('add_review', book_id=book.id) }}">
+                    <div class="star-rating-input" id="starInput">
+                        {% set cur = user_review.rating if user_review else 0 %}
+                        {% for i in range(5, 0, -1) %}
+                        <input type="radio" name="rating" id="s{{ i }}" value="{{ i }}"
+                               {% if i == cur %}checked{% endif %}>
+                        <label for="s{{ i }}" title="{{ i }} stars"><i class="fas fa-star"></i></label>
+                        {% endfor %}
+                    </div>
+                    <textarea name="review_text" class="form-ctrl" rows="3"
+                              placeholder="Share your thoughts…">{{ user_review.review_text if user_review else '' }}</textarea>
+                    <button type="submit" class="btn-primary" style="margin-top:.75rem">
+                        {{ 'Update Review' if user_review else 'Submit Review' }}
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+
+            <div class="reviews-list">
+                {% if reviews %}
+                {% for rv in reviews %}
+                <div class="review-card">
+                    <div class="review-head">
+                        <div class="review-avatar" style="background:{{ rv.avatar_color }}">
+                            {{ rv.user_name[0]|upper }}
+                        </div>
+                        <div class="review-meta">
+                            <div class="review-author">{{ rv.user_name }}</div>
+                            <div class="review-date">{{ rv.created_at.strftime('%d %b %Y') if rv.created_at else '' }}</div>
+                        </div>
+                        <div class="review-stars">
+                            {% for i in range(1,6) %}
+                            <i class="fas fa-star {% if i <= rv.rating %}star-filled{% else %}star-empty{% endif %}" style="font-size:.85rem"></i>
+                            {% endfor %}
+                        </div>
+                        {% if current_user.is_staff %}
+                        <form method="POST" action="{{ url_for('delete_review', review_id=rv.id) }}" style="margin-left:auto">
+                            <button class="btn-icon-xs btn-danger-xs" title="Remove review" type="submit"
+                                    onclick="return confirm('Remove this review?')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                    {% if rv.review_text %}
+                    <p class="review-body">{{ rv.review_text }}</p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-comment-alt"></i>
+                    <p>No reviews yet. Be the first!</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Wishlist
+const wBtn = document.getElementById('wishlistBtn');
+if (wBtn) {
+    wBtn.addEventListener('click', async () => {
+        const id = wBtn.dataset.bookId;
+        const res = await fetch(`/wishlist/toggle/${id}`, {method:'POST'});
+        const data = await res.json();
+        if (data.success) {
+            wBtn.classList.toggle('wishlisted', data.added);
+            wBtn.querySelector('span').textContent = data.added ? 'In Wishlist' : 'Add to Wishlist';
+            showToast(data.message, data.added ? 'success' : 'info');
+        }
+    });
+}
+// Reserve
+const rBtn = document.getElementById('reserveBtn');
+if (rBtn) {
+    rBtn.addEventListener('click', async () => {
+        const fd = new FormData();
+        fd.append('book_id', rBtn.dataset.bookId);
+        const res = await fetch('/reservations/add', {method:'POST', body:fd});
+        const data = await res.json();
+        showToast(data.message, data.success ? 'success' : 'danger');
+        if (data.success) rBtn.disabled = true;
+    });
+}
+// Issue
+const issueBtn = document.getElementById('issueBtn');
+if (issueBtn) {
+    issueBtn.addEventListener('click', async () => {
+        const bookId = issueBtn.dataset.bookId;
+        const memberId = document.getElementById('issueMemberId').value;
+        const days = document.getElementById('issueDays').value;
+        const msgEl = document.getElementById('issueMsg');
+        if (!memberId) { showToast('Please select a member.', 'warning'); return; }
+        const fd = new FormData();
+        fd.append('book_id', bookId);
+        fd.append('member_id', memberId);
+        fd.append('days', days);
+        const res = await fetch('/transactions/issue', {method:'POST', body:fd});
+        const data = await res.json();
+        msgEl.textContent = data.message;
+        msgEl.className = 'issue-msg ' + (data.success ? 'msg-success' : 'msg-error');
+        showToast(data.message, data.success ? 'success' : 'danger');
+        if (data.success) setTimeout(() => location.reload(), 1500);
+    });
+}
+</script>
+{% endblock %}
