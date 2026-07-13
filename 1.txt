@@ -1,2 +1,0 @@
-<--to run flask file-->
-python app.py
