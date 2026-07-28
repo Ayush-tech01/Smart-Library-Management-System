@@ -1,6 +1,6 @@
 # 📚 Library Management System
 
-A modern **Library Management System** developed using **Flask, Python, MySQL, HTML, CSS, and JavaScript**.
+A modern **Library Management System** developed using **Flask, Python, MySQL, HTML, CSS, and JavaScript**
 
 ## Features
 
