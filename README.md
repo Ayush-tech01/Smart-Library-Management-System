@@ -4,7 +4,7 @@ A modern **Library Management System** developed using **Flask, Python, MySQL, H
 
 ## Features
 
-- 🔐 Role-Based Access Control (Admin & Member)
+- 🔐 Role-Based Access Control (Admin & M)
 - 📚 Book Management
 - 👥 Member Management
 - 📖 Book Issue & Return
